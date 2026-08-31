@@ -18,7 +18,7 @@ class ExpenseTrackerApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Expense Tracker',
+      title: 'Spendo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

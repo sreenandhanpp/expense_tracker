@@ -5,7 +5,7 @@ import '../models/expense.dart';
 class ApiService {
   /// Base API URL. For Android Emulator: 10.0.2.2:3000/api
   /// For Linux Desktop / iOS Simulator / Web: localhost:3000/api
-  static String baseUrl = 'http://localhost:3000/api';
+  static String baseUrl = 'http://10.33.72.113:3000/api';
 
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',

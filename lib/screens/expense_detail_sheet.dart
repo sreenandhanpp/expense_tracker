@@ -164,7 +164,10 @@ class ExpenseDetailSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text('Edit', style: AppTypography.button),
+                    child: Text(
+                      'Edit',
+                      style: AppTypography.button.copyWith(color: AppColors.surface),
+                    ),
                   ),
                 ),
               ],
