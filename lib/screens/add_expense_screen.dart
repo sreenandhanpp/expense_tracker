@@ -7,7 +7,6 @@ import '../utils/date_formatter.dart';
 import '../widgets/category_picker_sheet.dart';
 import '../widgets/payment_picker_sheet.dart';
 import '../widgets/smart_suggestion_card.dart';
-import '../data/mock_expenses.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Expense? editingExpense;
@@ -71,12 +70,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         matched = apiSuggestions.map((s) => s.toExpense()).toList();
       }
     } catch (_) {}
-
-    if (matched.isEmpty) {
-      matched = smartSuggestionTemplates.where((template) {
-        return template.title.toLowerCase().contains(query.toLowerCase());
-      }).toList();
-    }
 
     if (mounted) {
       setState(() {

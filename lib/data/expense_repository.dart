@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/expense.dart';
 import '../services/api_service.dart';
-import 'mock_expenses.dart';
 
 class ExpenseRepository extends ChangeNotifier {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService;
   final List<Expense> _expenses = [];
   Summary? _summary;
   SpendingTrend? _spendingTrend;
   bool _isLoading = false;
   String? _errorMessage;
 
-  ExpenseRepository() {
-    _expenses.addAll(initialMockExpenses);
+  ExpenseRepository({ApiService? apiService}) : _apiService = apiService ?? ApiService() {
     fetchExpenses();
     fetchSummary();
     fetchTrends();
@@ -114,47 +112,44 @@ class ExpenseRepository extends ChangeNotifier {
 
   /// Total spending across current week
   double get totalSpendingThisWeek {
+    if (_summary != null) {
+      return _summary!.thisWeek;
+    }
     final now = DateTime.now();
     final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday % 7));
     final endOfWeek = startOfWeek.add(const Duration(days: 7));
-    final localSum = _expenses.where((e) {
+    return _expenses.where((e) {
       return !e.date.isBefore(startOfWeek) && e.date.isBefore(endOfWeek);
     }).fold(0.0, (sum, item) => sum + item.amount);
-
-    if (_summary != null) {
-      return localSum > _summary!.thisWeek ? localSum : _summary!.thisWeek;
-    }
-    return localSum;
   }
 
   /// Total spending for current month
   double get totalSpendingThisMonth {
+    if (_summary != null) {
+      return _summary!.thisMonth;
+    }
     final now = DateTime.now();
-    final localSum = _expenses
+    return _expenses
         .where((e) => e.date.month == now.month && e.date.year == now.year)
         .fold(0.0, (sum, item) => sum + item.amount);
-
-    if (_summary != null) {
-      return localSum > _summary!.thisMonth ? localSum : _summary!.thisMonth;
-    }
-    return localSum;
   }
 
   /// Total spending for year
   double get totalSpendingThisYear {
+    if (_summary != null) {
+      return _summary!.thisYear;
+    }
     final now = DateTime.now();
-    final localSum = _expenses
+    return _expenses
         .where((e) => e.date.year == now.year)
         .fold(0.0, (sum, item) => sum + item.amount);
-
-    if (_summary != null) {
-      return localSum > _summary!.thisYear ? localSum : _summary!.thisYear;
-    }
-    return localSum;
   }
 
   /// Daily spending breakdown for the weekly bar chart
   List<double> get weeklyDailyTotals {
+    if (_spendingTrend != null && _spendingTrend!.values.length == 7) {
+      return _spendingTrend!.values.map((v) => v.amount).toList();
+    }
     final totals = List<double>.filled(7, 0.0);
     final now = DateTime.now();
     final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday % 7));
@@ -164,15 +159,6 @@ class ExpenseRepository extends ChangeNotifier {
       final difference = expDay.difference(startOfWeek).inDays;
       if (difference >= 0 && difference < 7) {
         totals[difference] += expense.amount;
-      }
-    }
-
-    if (_spendingTrend != null && _spendingTrend!.values.length == 7) {
-      final backendTotals = _spendingTrend!.values.map((v) => v.amount).toList();
-      for (int i = 0; i < 7; i++) {
-        if (backendTotals[i] > totals[i]) {
-          totals[i] = backendTotals[i];
-        }
       }
     }
     return totals;
@@ -210,7 +196,7 @@ class ExpenseRepository extends ChangeNotifier {
     }).toList();
   }
 
-  /// Fetch suggestions from backend with fallback
+  /// Fetch suggestions from backend
   Future<List<Expense>> getSuggestionsAsync(String query) async {
     if (query.trim().isEmpty) return [];
     try {
@@ -222,15 +208,14 @@ class ExpenseRepository extends ChangeNotifier {
     return getSuggestions(query);
   }
 
-  /// Synchronous fallback suggestions
+  /// Synchronous fallback suggestions from fetched dynamic expenses
   List<Expense> getSuggestions(String query) {
     if (query.trim().isEmpty) return [];
     final lower = query.trim().toLowerCase();
-    final candidates = [...smartSuggestionTemplates, ..._expenses];
     final Set<String> seenTitles = {};
     final List<Expense> result = [];
 
-    for (var candidate in candidates) {
+    for (var candidate in _expenses) {
       if (candidate.title.toLowerCase().contains(lower) && !seenTitles.contains(candidate.title.toLowerCase())) {
         seenTitles.add(candidate.title.toLowerCase());
         result.add(candidate);
