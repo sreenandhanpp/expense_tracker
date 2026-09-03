@@ -41,7 +41,7 @@ class FakeApiService implements ApiService {
   Future<List<String>> getPaymentMethods() async => [];
 
   @override
-  Future<Summary> getSummary() async {
+  Future<Summary> getSummary({String? refDate}) async {
     return Summary(
       totalSpending: _store.fold(0, (s, e) => s + e.amount),
       thisWeek: _store.fold(0, (s, e) => s + e.amount),
@@ -51,7 +51,7 @@ class FakeApiService implements ApiService {
   }
 
   @override
-  Future<SpendingTrend> getSpendingTrends() async {
+  Future<SpendingTrend> getSpendingTrends({String? refDate}) async {
     return SpendingTrend(
       period: 'week',
       values: List.generate(7, (i) => TrendValue(date: '2026-03-0$i', amount: 0)),

@@ -29,9 +29,11 @@ const getSummary = async (req, res, next) => {
     const nowYear = refDate.getFullYear();
     const nowMonth = refDate.getMonth();
 
-    // Week boundaries (Sunday to Saturday)
+    // Week boundaries (Monday to Sunday)
+    const dayOfWeek = refDate.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const startOfWeek = new Date(refDate);
-    startOfWeek.setDate(refDate.getDate() - refDate.getDay());
+    startOfWeek.setDate(refDate.getDate() + diffToMonday);
     startOfWeek.setHours(0, 0, 0, 0);
 
     const endOfWeek = new Date(startOfWeek);
@@ -103,7 +105,7 @@ const getSummary = async (req, res, next) => {
 
 /**
  * GET /api/summary/trends
- * Daily breakdown for current week bar chart (Sunday to Saturday)
+ * Daily breakdown for week bar chart (Monday to Sunday)
  */
 const getSpendingTrends = async (req, res, next) => {
   try {
@@ -115,9 +117,11 @@ const getSpendingTrends = async (req, res, next) => {
       if (!isNaN(parsed.getTime())) refDate = parsed;
     }
 
-    // Sunday of reference week
+    // Monday of reference week
+    const dayOfWeek = refDate.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const startOfWeek = new Date(refDate);
-    startOfWeek.setDate(refDate.getDate() - refDate.getDay());
+    startOfWeek.setDate(refDate.getDate() + diffToMonday);
     startOfWeek.setHours(0, 0, 0, 0);
 
     const values = [];

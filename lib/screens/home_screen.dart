@@ -10,6 +10,8 @@ import '../widgets/expense_tile.dart';
 import '../widgets/empty_state.dart';
 import 'add_expense_screen.dart';
 import 'expense_detail_sheet.dart';
+import '../widgets/date_selector_sheet.dart';
+import '../widgets/skeleton_loader.dart';
 
 class HomeScreen extends StatelessWidget {
   final ExpenseRepository repository;
@@ -29,7 +31,6 @@ class HomeScreen extends StatelessWidget {
       listenable: repository,
       builder: (context, _) {
         final allExpenses = repository.expenses;
-        final totalSpending = repository.totalSpendingThisWeek;
         final dailyTotals = repository.weeklyDailyTotals;
 
         final Map<String, List<Expense>> groupedExpenses = {};
@@ -89,7 +90,7 @@ class HomeScreen extends StatelessWidget {
 
                         const Spacer(),
 
-                        // Top Subtle Icons (Search, Filter)
+                        // Top Subtle Icons (Calendar, Search, Filter)
                         Container(
                           decoration: BoxDecoration(
                             color: AppColors.surface,
@@ -98,6 +99,13 @@ class HomeScreen extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
+                              IconButton(
+                                icon: const Icon(Icons.calendar_today_outlined, size: 18, color: AppColors.textPrimary),
+                                onPressed: () => DateSelectorSheet.show(context, repository),
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Select Date / Week',
+                              ),
                               IconButton(
                                 icon: const Icon(Icons.search, size: 20, color: AppColors.textPrimary),
                                 onPressed: onSearchPressed,
@@ -119,7 +127,18 @@ class HomeScreen extends StatelessWidget {
                 ),
 
                 // Main Content Body
-                if (allExpenses.isEmpty)
+                if (repository.isLoading && allExpenses.isEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        const SpendingSummaryCardSkeleton(),
+                        const SizedBox(height: AppSpacing.xl),
+                        const ExpenseGroupSkeleton(itemCount: 3),
+                      ]),
+                    ),
+                  )
+                else if (allExpenses.isEmpty)
                   SliverFillRemaining(
                     child: EmptyStateWidget(
                       onAddPressed: () => _navigateToAddExpense(context),
@@ -132,8 +151,12 @@ class HomeScreen extends StatelessWidget {
                       delegate: SliverChildListDelegate([
                         // Total Spending Summary Card with Bar Chart
                         SpendingSummaryCard(
-                          totalSpending: totalSpending,
+                          displayedSpending: repository.displayedSpending,
                           dailyTotals: dailyTotals,
+                          selectedIndex: repository.selectedDayIndex,
+                          onDayTap: (index) => repository.selectDayIndex(index),
+                          onTotalSpendingTap: () => repository.selectDayIndex(null),
+                          weekRangeText: DateFormatter.formatWeekRange(repository.startOfWeekMonday),
                         ),
 
                         const SizedBox(height: AppSpacing.xl),

@@ -5,7 +5,7 @@ import '../utils/app_typography.dart';
 import '../utils/date_formatter.dart';
 import 'add_expense_screen.dart';
 
-class ExpenseDetailSheet extends StatelessWidget {
+class ExpenseDetailSheet extends StatefulWidget {
   final Expense expense;
   final VoidCallback onDelete;
   final ValueChanged<Expense> onUpdate;
@@ -41,7 +41,16 @@ class ExpenseDetailSheet extends StatelessWidget {
   }
 
   @override
+  State<ExpenseDetailSheet> createState() => _ExpenseDetailSheetState();
+}
+
+class _ExpenseDetailSheetState extends State<ExpenseDetailSheet> {
+  bool _isDeleting = false;
+
+  @override
   Widget build(BuildContext context) {
+    final expense = widget.expense;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -123,10 +132,13 @@ class ExpenseDetailSheet extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onDelete();
-                    },
+                    onPressed: _isDeleting
+                        ? null
+                        : () async {
+                            setState(() => _isDeleting = true);
+                            Navigator.pop(context);
+                            widget.onDelete();
+                          },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: const BorderSide(color: Color(0xFFE53935)),
@@ -134,27 +146,38 @@ class ExpenseDetailSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: Text(
-                      'Delete',
-                      style: AppTypography.button.copyWith(color: const Color(0xFFE53935)),
-                    ),
+                    child: _isDeleting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFE53935),
+                            ),
+                          )
+                        : Text(
+                            'Delete',
+                            style: AppTypography.button.copyWith(color: const Color(0xFFE53935)),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      final updated = await Navigator.push<Expense>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AddExpenseScreen(editingExpense: expense),
-                        ),
-                      );
-                      if (updated != null) {
-                        onUpdate(updated);
-                      }
-                    },
+                    onPressed: _isDeleting
+                        ? null
+                        : () async {
+                            Navigator.pop(context);
+                            final updated = await Navigator.push<Expense>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AddExpenseScreen(editingExpense: expense),
+                              ),
+                            );
+                            if (updated != null) {
+                              widget.onUpdate(updated);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.textPrimary,
                       foregroundColor: AppColors.surface,

@@ -29,6 +29,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   List<Expense> _suggestions = [];
   bool _showSuggestions = false;
 
+  bool _isSubmitting = false;
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +118,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   void _saveExpense() {
+    if (_isSubmitting) return;
+
     final title = _titleController.text.trim();
     final amountText = _amountController.text.trim();
     final amount = double.tryParse(amountText);
@@ -133,6 +137,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
       return;
     }
+
+    setState(() => _isSubmitting = true);
 
     final expense = Expense(
       id: widget.editingExpense?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -175,7 +181,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                     style: TextButton.styleFrom(
                       backgroundColor: AppColors.surface,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -199,7 +205,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
 
                   GestureDetector(
-                    onTap: _saveExpense,
+                    onTap: _isSubmitting ? null : _saveExpense,
                     child: Container(
                       width: 38,
                       height: 38,
@@ -207,11 +213,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         color: AppColors.backgroundSecondary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.check,
-                        size: 20,
-                        color: AppColors.textPrimary,
-                      ),
+                      child: _isSubmitting
+                          ? const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.textPrimary,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.check,
+                              size: 20,
+                              color: AppColors.textPrimary,
+                            ),
                     ),
                   ),
                 ],

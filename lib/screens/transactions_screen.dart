@@ -10,6 +10,8 @@ import '../widgets/empty_state.dart';
 import 'add_expense_screen.dart';
 import 'expense_detail_sheet.dart';
 
+import '../widgets/skeleton_loader.dart';
+
 class TransactionsScreen extends StatefulWidget {
   final ExpenseRepository repository;
 
@@ -121,19 +123,27 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
                 // Transaction Group List or Empty State
                 Expanded(
-                  child: filteredList.isEmpty
-                      ? EmptyStateWidget(
-                          onAddPressed: () async {
-                            final newExp = await Navigator.push<Expense>(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-                            );
-                            if (newExp != null) {
-                              widget.repository.addExpense(newExp);
-                            }
-                          },
+                  child: widget.repository.isLoading && filteredList.isEmpty
+                      ? ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                          children: const [
+                            ExpenseGroupSkeleton(itemCount: 3),
+                            ExpenseGroupSkeleton(itemCount: 2),
+                          ],
                         )
-                      : ListView.builder(
+                      : filteredList.isEmpty
+                          ? EmptyStateWidget(
+                              onAddPressed: () async {
+                                final newExp = await Navigator.push<Expense>(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+                                );
+                                if (newExp != null) {
+                                  widget.repository.addExpense(newExp);
+                                }
+                              },
+                            )
+                          : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                           itemCount: grouped.entries.length,
                           itemBuilder: (context, groupIndex) {

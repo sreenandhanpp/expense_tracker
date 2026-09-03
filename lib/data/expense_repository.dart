@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/expense.dart';
 import '../services/api_service.dart';
+import '../services/widget_sync_service.dart';
 
 class ExpenseRepository extends ChangeNotifier {
   final ApiService _apiService;
   final List<Expense> _expenses = [];
   Summary? _summary;
   SpendingTrend? _spendingTrend;
+  DateTime _selectedWeekDate = DateTime.now();
+  int? _selectedDayIndex;
   bool _isLoading = false;
   String? _errorMessage;
 
   ExpenseRepository({ApiService? apiService}) : _apiService = apiService ?? ApiService() {
-    fetchExpenses();
-    fetchSummary();
-    fetchTrends();
+    refreshAll();
   }
 
   List<Expense> get expenses => List.unmodifiable(_expenses..sort((a, b) => b.date.compareTo(a.date)));
@@ -21,6 +22,21 @@ class ExpenseRepository extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   Summary? get summary => _summary;
   SpendingTrend? get spendingTrend => _spendingTrend;
+  DateTime get selectedWeekDate => _selectedWeekDate;
+  int? get selectedDayIndex => _selectedDayIndex;
+
+  /// Start of the currently selected week (Monday 00:00:00)
+  DateTime get startOfWeekMonday {
+    final d = DateTime(_selectedWeekDate.year, _selectedWeekDate.month, _selectedWeekDate.day);
+    return d.subtract(Duration(days: d.weekday - 1));
+  }
+
+  /// Refresh expenses, summary, and trends
+  Future<void> refreshAll() async {
+    await fetchExpenses();
+    await fetchSummary();
+    await fetchTrends();
+  }
 
   /// Fetch all expenses from backend
   Future<void> fetchExpenses({
@@ -45,23 +61,60 @@ class ExpenseRepository extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+      WidgetSyncService.syncTodayWidget(this);
     }
   }
 
-  /// Fetch spending summary from backend
+  /// Fetch spending summary from backend for selected week date
   Future<void> fetchSummary() async {
     try {
-      _summary = await _apiService.getSummary();
+      final isoDate = '${_selectedWeekDate.year}-${_selectedWeekDate.month.toString().padLeft(2, '0')}-${_selectedWeekDate.day.toString().padLeft(2, '0')}';
+      _summary = await _apiService.getSummary(refDate: isoDate);
       notifyListeners();
     } catch (_) {}
   }
 
-  /// Fetch spending trends from backend
+  /// Fetch spending trends from backend for selected week date
   Future<void> fetchTrends() async {
     try {
-      _spendingTrend = await _apiService.getSpendingTrends();
+      final isoDate = '${_selectedWeekDate.year}-${_selectedWeekDate.month.toString().padLeft(2, '0')}-${_selectedWeekDate.day.toString().padLeft(2, '0')}';
+      _spendingTrend = await _apiService.getSpendingTrends(refDate: isoDate);
       notifyListeners();
     } catch (_) {}
+  }
+
+  /// Set selected week date and reload summary & trends
+  Future<void> selectWeekDate(DateTime date) async {
+    _selectedWeekDate = date;
+    _selectedDayIndex = null;
+    notifyListeners();
+    await fetchSummary();
+    await fetchTrends();
+  }
+
+  /// Navigate to previous week
+  Future<void> previousWeek() async {
+    await selectWeekDate(_selectedWeekDate.subtract(const Duration(days: 7)));
+  }
+
+  /// Navigate to next week
+  Future<void> nextWeek() async {
+    await selectWeekDate(_selectedWeekDate.add(const Duration(days: 7)));
+  }
+
+  /// Reset to current week
+  Future<void> resetToCurrentWeek() async {
+    await selectWeekDate(DateTime.now());
+  }
+
+  /// Toggle or select a day bar in the weekly graph (0 = Mon, ..., 6 = Sun)
+  void selectDayIndex(int? index) {
+    if (_selectedDayIndex == index) {
+      _selectedDayIndex = null;
+    } else {
+      _selectedDayIndex = index;
+    }
+    notifyListeners();
   }
 
   /// Add a new expense
@@ -76,6 +129,7 @@ class ExpenseRepository extends ChangeNotifier {
     await fetchSummary();
     await fetchTrends();
     notifyListeners();
+    WidgetSyncService.syncTodayWidget(this);
   }
 
   /// Update an existing expense
@@ -96,6 +150,7 @@ class ExpenseRepository extends ChangeNotifier {
     await fetchSummary();
     await fetchTrends();
     notifyListeners();
+    WidgetSyncService.syncTodayWidget(this);
   }
 
   /// Delete an expense by ID
@@ -108,19 +163,30 @@ class ExpenseRepository extends ChangeNotifier {
     await fetchSummary();
     await fetchTrends();
     notifyListeners();
+    WidgetSyncService.syncTodayWidget(this);
   }
 
-  /// Total spending across current week
+  /// Total spending across current selected week
   double get totalSpendingThisWeek {
     if (_summary != null) {
       return _summary!.thisWeek;
     }
-    final now = DateTime.now();
-    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday % 7));
+    final startOfWeek = startOfWeekMonday;
     final endOfWeek = startOfWeek.add(const Duration(days: 7));
     return _expenses.where((e) {
       return !e.date.isBefore(startOfWeek) && e.date.isBefore(endOfWeek);
     }).fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  /// Displayed total spending (either selected day total or week total)
+  double get displayedSpending {
+    if (_selectedDayIndex != null) {
+      final totals = weeklyDailyTotals;
+      if (_selectedDayIndex! >= 0 && _selectedDayIndex! < totals.length) {
+        return totals[_selectedDayIndex!];
+      }
+    }
+    return totalSpendingThisWeek;
   }
 
   /// Total spending for current month
@@ -145,14 +211,13 @@ class ExpenseRepository extends ChangeNotifier {
         .fold(0.0, (sum, item) => sum + item.amount);
   }
 
-  /// Daily spending breakdown for the weekly bar chart
+  /// Daily spending breakdown for the weekly bar chart (Monday to Sunday)
   List<double> get weeklyDailyTotals {
     if (_spendingTrend != null && _spendingTrend!.values.length == 7) {
       return _spendingTrend!.values.map((v) => v.amount).toList();
     }
     final totals = List<double>.filled(7, 0.0);
-    final now = DateTime.now();
-    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday % 7));
+    final startOfWeek = startOfWeekMonday;
 
     for (var expense in _expenses) {
       final expDay = DateTime(expense.date.year, expense.date.month, expense.date.day);

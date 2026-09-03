@@ -127,8 +127,11 @@ class ApiService {
   }
 
   /// GET /api/summary
-  Future<Summary> getSummary() async {
-    final uri = Uri.parse('$baseUrl/summary');
+  Future<Summary> getSummary({String? refDate}) async {
+    final queryParams = <String, String>{};
+    if (refDate != null && refDate.isNotEmpty) queryParams['refDate'] = refDate;
+
+    final uri = Uri.parse('$baseUrl/summary').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
     final response = await http.get(uri, headers: _headers);
 
     if (response.statusCode == 200) {
@@ -141,8 +144,11 @@ class ApiService {
   }
 
   /// GET /api/summary/trends
-  Future<SpendingTrend> getSpendingTrends() async {
-    final uri = Uri.parse('$baseUrl/summary/trends');
+  Future<SpendingTrend> getSpendingTrends({String? refDate}) async {
+    final queryParams = <String, String>{};
+    if (refDate != null && refDate.isNotEmpty) queryParams['refDate'] = refDate;
+
+    final uri = Uri.parse('$baseUrl/summary/trends').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
     final response = await http.get(uri, headers: _headers);
 
     if (response.statusCode == 200) {

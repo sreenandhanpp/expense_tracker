@@ -3,6 +3,7 @@ import '../data/expense_repository.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
+import '../widgets/skeleton_loader.dart';
 
 class InsightsScreen extends StatelessWidget {
   final ExpenseRepository repository;
@@ -21,6 +22,7 @@ class InsightsScreen extends StatelessWidget {
         final monthTotal = repository.totalSpendingThisMonth;
         final yearTotal = repository.totalSpendingThisYear;
         final topCat = repository.topCategory;
+        final isLoading = repository.isLoading && repository.summary == null;
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -36,51 +38,59 @@ class InsightsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Card 1: This Week
-                  _buildInsightCard('This Week', '₹${weekTotal.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
+                  if (isLoading) ...[
+                    const InsightCardSkeleton(),
+                    const SizedBox(height: 16),
+                    const InsightCardSkeleton(),
+                    const SizedBox(height: 16),
+                    const InsightCardSkeleton(),
+                  ] else ...[
+                    // Card 1: This Week
+                    _buildInsightCard('This Week', '₹${weekTotal.toStringAsFixed(2)}'),
+                    const SizedBox(height: 16),
 
-                  // Card 2: This Month
-                  _buildInsightCard('This Month', '₹${monthTotal.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
+                    // Card 2: This Month
+                    _buildInsightCard('This Month', '₹${monthTotal.toStringAsFixed(2)}'),
+                    const SizedBox(height: 16),
 
-                  // Card 3: This Year
-                  _buildInsightCard('This Year', '₹${yearTotal.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
+                    // Card 3: This Year
+                    _buildInsightCard('This Year', '₹${yearTotal.toStringAsFixed(2)}'),
+                    const SizedBox(height: 16),
 
-                  // Card 4: Top Category
-                  if (topCat != null)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Top Category',
-                            style: AppTypography.titleSmall.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(topCat.icon, size: 22, color: AppColors.textPrimary),
-                              const SizedBox(width: 8),
-                              Text(
-                                topCat.label,
-                                style: AppTypography.titleLarge.copyWith(fontSize: 22),
+                    // Card 4: Top Category
+                    if (topCat != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Top Category',
+                              style: AppTypography.titleSmall.copyWith(
+                                color: AppColors.textSecondary,
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(topCat.icon, size: 22, color: AppColors.textPrimary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  topCat.label,
+                                  style: AppTypography.titleLarge.copyWith(fontSize: 22),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                  ],
                 ],
               ),
             ),
