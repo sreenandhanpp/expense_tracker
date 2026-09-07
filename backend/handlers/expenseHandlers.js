@@ -3,12 +3,12 @@ const { Expense, CATEGORIES, PAYMENT_METHODS } = require('../models/Expense');
 
 /**
  * GET /api/expenses
- * Search and filter expenses dynamically
+ * Search and filter expenses dynamically for authenticated user
  */
 const getExpenses = async (req, res, next) => {
   try {
     const { search, category, payment, date } = req.query;
-    const query = {};
+    const query = { user: req.user.id };
 
     if (search && search.trim() !== '') {
       query.title = { $regex: search.trim(), $options: 'i' };
@@ -48,7 +48,7 @@ const getExpenses = async (req, res, next) => {
 
 /**
  * GET /api/expenses/:id
- * Retrieve a single expense by ID
+ * Retrieve a single expense by ID for authenticated user
  */
 const getExpense = async (req, res, next) => {
   try {
@@ -61,7 +61,7 @@ const getExpense = async (req, res, next) => {
       });
     }
 
-    const expense = await Expense.findById(id);
+    const expense = await Expense.findOne({ _id: id, user: req.user.id });
 
     if (!expense) {
       return res.status(404).json({
@@ -81,7 +81,7 @@ const getExpense = async (req, res, next) => {
 
 /**
  * POST /api/expenses
- * Create a new expense
+ * Create a new expense associated with authenticated user
  */
 const createExpense = async (req, res, next) => {
   try {
@@ -125,6 +125,7 @@ const createExpense = async (req, res, next) => {
     }
 
     const newExpense = await Expense.create({
+      user: req.user.id,
       title: title.trim(),
       amount: numAmount,
       category,
@@ -150,7 +151,7 @@ const createExpense = async (req, res, next) => {
 
 /**
  * PUT /api/expenses/:id
- * Update an existing expense
+ * Update an existing expense for authenticated user
  */
 const updateExpense = async (req, res, next) => {
   try {
@@ -219,8 +220,8 @@ const updateExpense = async (req, res, next) => {
       updateData.date = parsedDate;
     }
 
-    const updatedExpense = await Expense.findByIdAndUpdate(
-      id,
+    const updatedExpense = await Expense.findOneAndUpdate(
+      { _id: id, user: req.user.id },
       updateData,
       { new: true, runValidators: true }
     );
@@ -250,7 +251,7 @@ const updateExpense = async (req, res, next) => {
 
 /**
  * DELETE /api/expenses/:id
- * Delete an expense
+ * Delete an expense for authenticated user
  */
 const deleteExpense = async (req, res, next) => {
   try {
@@ -263,7 +264,7 @@ const deleteExpense = async (req, res, next) => {
       });
     }
 
-    const deleted = await Expense.findByIdAndDelete(id);
+    const deleted = await Expense.findOneAndDelete({ _id: id, user: req.user.id });
 
     if (!deleted) {
       return res.status(404).json({

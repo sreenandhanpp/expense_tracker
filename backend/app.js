@@ -3,9 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const connectDatabase = require('./config/database');
 
+const authRoutes = require('./routes/authRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
 const summaryRoutes = require('./routes/summaryRoutes');
 const suggestionRoutes = require('./routes/suggestionRoutes');
+const authMiddleware = require('./middleware/authMiddleware');
 const { getCategories, getPaymentMethods } = require('./handlers/expenseHandlers');
 
 const app = express();
@@ -14,7 +16,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health Check
+// Health Check (Public)
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
@@ -22,14 +24,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Categories & Payment Methods
-app.get('/api/categories', getCategories);
-app.get('/api/payment-methods', getPaymentMethods);
+// Auth Routes (Public login endpoint, protected me endpoint inside authRoutes)
+app.use('/api/auth', authRoutes);
 
-// API Routes
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/summary', summaryRoutes);
-app.use('/api/suggestions', suggestionRoutes);
+// Protected Metadata Endpoints
+app.get('/api/categories', authMiddleware, getCategories);
+app.get('/api/payment-methods', authMiddleware, getPaymentMethods);
+
+// Protected API Routes
+app.use('/api/expenses', authMiddleware, expenseRoutes);
+app.use('/api/summary', authMiddleware, summaryRoutes);
+app.use('/api/suggestions', authMiddleware, suggestionRoutes);
 
 // 404 Handler
 app.use((req, res) => {

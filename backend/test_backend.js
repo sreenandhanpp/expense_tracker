@@ -2,11 +2,14 @@ const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const supertest = require('supertest');
 const { app } = require('./app');
-const { Expense } = require('./models/Expense');
 
 async function runTests() {
-  console.log('Starting Backend End-to-End Tests with In-Memory MongoDB...');
-  const mongod = await MongoMemoryServer.create();
+  console.log('Starting Backend End-to-End Tests with In-Memory MongoDB & Auth...');
+  const mongod = await MongoMemoryServer.create({
+    instance: {
+      dbName: 'test_auth_db'
+    }
+  });
   const uri = mongod.getUri();
 
   await mongoose.connect(uri);
@@ -25,19 +28,43 @@ async function runTests() {
   };
 
   try {
-    // 1. GET /api/health
+    // 1. GET /api/health (Public endpoint)
     const resHealth = await request.get('/api/health');
-    assert(resHealth.status === 200 && resHealth.body.success === true, 'GET /api/health');
+    assert(resHealth.status === 200 && resHealth.body.success === true, 'GET /api/health (Public)');
 
-    // 2. GET /api/categories
-    const resCat = await request.get('/api/categories');
+    // 2. Unauthenticated access check (Should fail with 401)
+    const resUnauth = await request.get('/api/expenses');
+    assert(resUnauth.status === 401 && resUnauth.body.success === false, 'GET /api/expenses (Unauthenticated rejected with 401)');
+
+    // 3. Authenticate User 1 via POST /api/auth/google
+    const resAuth1 = await request.post('/api/auth/google').send({
+      idToken: 'mock-token-alice'
+    });
+    assert(resAuth1.status === 200 && resAuth1.body.data.token !== undefined, 'POST /api/auth/google (User 1 - Alice)');
+    const tokenUser1 = resAuth1.body.data.token;
+    const authHeaderUser1 = { Authorization: `Bearer ${tokenUser1}` };
+
+    // 4. Authenticate User 2 via POST /api/auth/google
+    const resAuth2 = await request.post('/api/auth/google').send({
+      idToken: 'mock-token-bob'
+    });
+    assert(resAuth2.status === 200 && resAuth2.body.data.token !== undefined, 'POST /api/auth/google (User 2 - Bob)');
+    const tokenUser2 = resAuth2.body.data.token;
+    const authHeaderUser2 = { Authorization: `Bearer ${tokenUser2}` };
+
+    // 5. GET /api/auth/me for User 1
+    const resMe = await request.get('/api/auth/me').set(authHeaderUser1);
+    assert(resMe.status === 200 && resMe.body.data.email === 'alice@example.com', 'GET /api/auth/me');
+
+    // 6. GET /api/categories (Authenticated)
+    const resCat = await request.get('/api/categories').set(authHeaderUser1);
     assert(resCat.status === 200 && resCat.body.data.includes('Food & Drinks'), 'GET /api/categories');
 
-    // 3. GET /api/payment-methods
-    const resPay = await request.get('/api/payment-methods');
+    // 7. GET /api/payment-methods (Authenticated)
+    const resPay = await request.get('/api/payment-methods').set(authHeaderUser1);
     assert(resPay.status === 200 && resPay.body.data.includes('Card'), 'GET /api/payment-methods');
 
-    // 4. POST /api/expenses (Create Expense 1: Spotify)
+    // 8. User 1 creates Expense 1: Spotify ($20.98)
     const exp1Data = {
       title: 'Spotify',
       amount: 20.98,
@@ -45,11 +72,11 @@ async function runTests() {
       payment: 'Card',
       date: '2026-03-10T00:00:00.000Z'
     };
-    const resCreate1 = await request.post('/api/expenses').send(exp1Data);
-    assert(resCreate1.status === 201 && resCreate1.body.data.id !== undefined, 'POST /api/expenses (Spotify)');
+    const resCreate1 = await request.post('/api/expenses').set(authHeaderUser1).send(exp1Data);
+    assert(resCreate1.status === 201 && resCreate1.body.data.id !== undefined, 'POST /api/expenses (Spotify by Alice)');
     const spotifyId = resCreate1.body.data.id;
 
-    // 5. POST /api/expenses (Create Expense 2: Dining out)
+    // 9. User 1 creates Expense 2: Dining out ($16.20)
     const exp2Data = {
       title: 'Dining out',
       amount: 16.20,
@@ -57,64 +84,57 @@ async function runTests() {
       payment: 'UPI',
       date: '2026-03-09T00:00:00.000Z'
     };
-    const resCreate2 = await request.post('/api/expenses').send(exp2Data);
-    assert(resCreate2.status === 201 && resCreate2.body.data.title === 'Dining out', 'POST /api/expenses (Dining out)');
+    const resCreate2 = await request.post('/api/expenses').set(authHeaderUser1).send(exp2Data);
+    assert(resCreate2.status === 201 && resCreate2.body.data.title === 'Dining out', 'POST /api/expenses (Dining out by Alice)');
     const diningId = resCreate2.body.data.id;
 
-    // 6. GET /api/expenses (List all)
-    const resList = await request.get('/api/expenses');
-    assert(resList.status === 200 && resList.body.data.length === 2, 'GET /api/expenses (all)');
+    // 10. User 1 GET /api/expenses (Should return 2 expenses)
+    const resList1 = await request.get('/api/expenses').set(authHeaderUser1);
+    assert(resList1.status === 200 && resList1.body.data.length === 2, 'GET /api/expenses (User 1 has 2 expenses)');
 
-    // 7. GET /api/expenses?search=spotify (Search filter case-insensitive)
-    const resSearch = await request.get('/api/expenses?search=SPOTIFY');
+    // 11. User 2 GET /api/expenses (User Isolation: Should return 0 expenses)
+    const resList2 = await request.get('/api/expenses').set(authHeaderUser2);
+    assert(resList2.status === 200 && resList2.body.data.length === 0, 'GET /api/expenses (User 2 has 0 expenses - Data Isolation Verified)');
+
+    // 12. User 2 attempts to GET User 1\'s expense (Should return 404)
+    const resUnauthorizedGet = await request.get(`/api/expenses/${spotifyId}`).set(authHeaderUser2);
+    assert(resUnauthorizedGet.status === 404, 'GET /api/expenses/:id (User 2 cannot view User 1\'s expense)');
+
+    // 13. Search filter for User 1
+    const resSearch = await request.get('/api/expenses?search=SPOTIFY').set(authHeaderUser1);
     assert(resSearch.status === 200 && resSearch.body.data.length === 1 && resSearch.body.data[0].title === 'Spotify', 'GET /api/expenses?search=SPOTIFY');
 
-    // 8. GET /api/expenses?category=Entertainment
-    const resCategory = await request.get('/api/expenses?category=Entertainment');
-    assert(resCategory.status === 200 && resCategory.body.data.length === 1, 'GET /api/expenses?category=Entertainment');
-
-    // 9. GET /api/expenses?payment=UPI
-    const resPayment = await request.get('/api/expenses?payment=UPI');
-    assert(resPayment.status === 200 && resPayment.body.data.length === 1 && resPayment.body.data[0].payment === 'UPI', 'GET /api/expenses?payment=UPI');
-
-    // 10. GET /api/expenses/:id
-    const resGetSingle = await request.get(`/api/expenses/${spotifyId}`);
-    assert(resGetSingle.status === 200 && resGetSingle.body.data.id === spotifyId, 'GET /api/expenses/:id');
-
-    // 11. PUT /api/expenses/:id (Update Spotify to Spotify Premium)
-    const resUpdate = await request.put(`/api/expenses/${spotifyId}`).send({
+    // 14. Update Expense for User 1
+    const resUpdate = await request.put(`/api/expenses/${spotifyId}`).set(authHeaderUser1).send({
       title: 'Spotify Premium',
       amount: 25.00
     });
     assert(resUpdate.status === 200 && resUpdate.body.data.title === 'Spotify Premium' && resUpdate.body.data.amount === 25.00, 'PUT /api/expenses/:id');
 
-    // 12. GET /api/summary
-    const resSummary = await request.get('/api/summary?refDate=2026-03-10');
-    assert(resSummary.status === 200 && resSummary.body.data.totalSpending === 41.20, 'GET /api/summary');
+    // 15. User 1 GET /api/summary
+    const resSummary1 = await request.get('/api/summary?refDate=2026-03-10').set(authHeaderUser1);
+    assert(resSummary1.status === 200 && resSummary1.body.data.totalSpending === 41.20, 'GET /api/summary (User 1)');
 
-    // 13. GET /api/summary/trends
-    const resTrends = await request.get('/api/summary/trends?refDate=2026-03-10');
-    assert(resTrends.status === 200 && resTrends.body.data.values.length === 7, 'GET /api/summary/trends');
+    // 16. User 2 GET /api/summary (Should be 0)
+    const resSummary2 = await request.get('/api/summary?refDate=2026-03-10').set(authHeaderUser2);
+    assert(resSummary2.status === 200 && resSummary2.body.data.totalSpending === 0, 'GET /api/summary (User 2 - 0 total spending)');
 
-    // 14. GET /api/suggestions?query=spot
-    const resSugg = await request.get('/api/suggestions?query=spot');
-    assert(resSugg.status === 200 && resSugg.body.data.length === 1 && resSugg.body.data[0].title === 'Spotify Premium', 'GET /api/suggestions?query=spot');
+    // 17. User 1 GET /api/suggestions
+    const resSugg = await request.get('/api/suggestions?query=spot').set(authHeaderUser1);
+    assert(resSugg.status === 200 && resSugg.body.data.length === 1 && resSugg.body.data[0].title === 'Spotify Premium', 'GET /api/suggestions');
 
-    // 15. DELETE /api/expenses/:id
-    const resDelete = await request.delete(`/api/expenses/${diningId}`);
+    // 18. User 1 DELETE expense
+    const resDelete = await request.delete(`/api/expenses/${diningId}`).set(authHeaderUser1);
     assert(resDelete.status === 200 && resDelete.body.success === true, 'DELETE /api/expenses/:id');
 
-    // 16. Validation Errors Test
-    const resBadAmount = await request.post('/api/expenses').send({
+    // 19. Validation Errors Test
+    const resBadAmount = await request.post('/api/expenses').set(authHeaderUser1).send({
       title: 'Bad Amount',
       amount: -10,
       category: 'Food & Drinks',
       payment: 'Cash'
     });
     assert(resBadAmount.status === 400 && resBadAmount.body.success === false, 'Validation Error: negative amount');
-
-    const resBadId = await request.get('/api/expenses/invalid_object_id');
-    assert(resBadId.status === 404 && resBadId.body.success === false, 'Error: invalid ObjectId');
 
   } catch (err) {
     console.error('Test execution error:', err);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/expense.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/widget_sync_service.dart';
 
 class ExpenseRepository extends ChangeNotifier {
@@ -14,7 +15,24 @@ class ExpenseRepository extends ChangeNotifier {
   String? _errorMessage;
 
   ExpenseRepository({ApiService? apiService}) : _apiService = apiService ?? ApiService() {
+    AuthService().addListener(_onAuthChanged);
     refreshAll();
+  }
+
+  void _onAuthChanged() {
+    if (AuthService().isAuthenticated) {
+      refreshAll();
+    } else {
+      clearAll();
+    }
+  }
+
+  void clearAll() {
+    _expenses.clear();
+    _summary = null;
+    _spendingTrend = null;
+    _selectedDayIndex = null;
+    notifyListeners();
   }
 
   List<Expense> get expenses => List.unmodifiable(_expenses..sort((a, b) => b.date.compareTo(a.date)));
@@ -287,5 +305,11 @@ class ExpenseRepository extends ChangeNotifier {
       }
     }
     return result.take(5).toList();
+  }
+
+  @override
+  void dispose() {
+    AuthService().removeListener(_onAuthChanged);
+    super.dispose();
   }
 }

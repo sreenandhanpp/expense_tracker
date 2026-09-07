@@ -48,6 +48,12 @@ const expenseSchema = new mongoose.Schema(
     date: {
       type: Date,
       required: [true, 'Date is required']
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'User is required'],
+      index: true
     }
   },
   {
@@ -55,6 +61,7 @@ const expenseSchema = new mongoose.Schema(
   }
 );
 
+expenseSchema.index({ user: 1, date: -1 });
 expenseSchema.index({ date: -1 });
 expenseSchema.index({ title: 'text' });
 

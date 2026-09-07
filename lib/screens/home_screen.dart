@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/expense_repository.dart';
 import '../models/expense.dart';
+import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
@@ -117,6 +118,13 @@ class HomeScreen extends StatelessWidget {
                                 onPressed: onFilterPressed,
                                 padding: const EdgeInsets.all(8),
                                 constraints: const BoxConstraints(),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.logout, size: 18, color: AppColors.textPrimary),
+                                onPressed: () => AuthService().signOut(),
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Sign Out',
                               ),
                             ],
                           ),

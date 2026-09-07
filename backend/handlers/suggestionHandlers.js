@@ -18,7 +18,7 @@ const getSuggestions = async (req, res, next) => {
     const searchTerm = query.trim();
     const regex = new RegExp(searchTerm, 'i');
 
-    const expenses = await Expense.find({ title: regex })
+    const expenses = await Expense.find({ user: req.user.id, title: regex })
       .sort({ date: -1, createdAt: -1 })
       .limit(20);
 

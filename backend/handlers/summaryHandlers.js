@@ -16,7 +16,7 @@ const formatDateKey = (date) => {
  */
 const getSummary = async (req, res, next) => {
   try {
-    const allExpenses = await Expense.find();
+    const allExpenses = await Expense.find({ user: req.user.id });
 
     // Determine reference date: use query refDate if provided, otherwise default to current date
     let refDate = new Date();
@@ -109,7 +109,7 @@ const getSummary = async (req, res, next) => {
  */
 const getSpendingTrends = async (req, res, next) => {
   try {
-    const allExpenses = await Expense.find();
+    const allExpenses = await Expense.find({ user: req.user.id });
 
     let refDate = new Date();
     if (req.query.refDate) {

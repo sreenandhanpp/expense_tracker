@@ -1,16 +1,24 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/expense.dart';
+import 'auth_service.dart';
 
 class ApiService {
   /// Base API URL. For Android Emulator: 10.0.2.2:3000/api
   /// For Linux Desktop / iOS Simulator / Web: localhost:3000/api
   static String baseUrl = 'https://expense-tracker-dceb.onrender.com/api';
 
-  static Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  static Map<String, String> get _headers {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    final token = AuthService().token;
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
 
   /// GET /api/expenses with optional filters (search, category, payment, date)
   Future<List<Expense>> getExpenses({
