@@ -11,6 +11,8 @@ class AuthService extends ChangeNotifier {
   AuthService._internal();
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: '764750335904-lriafp256g49qagqkndo7a3qv0oqnelo.apps.googleusercontent.com',
+    clientId: '764750335904-lriafp256g49qagqkndo7a3qv0oqnelo.apps.googleusercontent.com',
     scopes: ['email', 'profile'],
   );
 
