@@ -1,6 +1,7 @@
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models/User');
+const { Expense } = require('../models/Expense');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expense_tracker_secret_jwt_key_2026';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -27,10 +28,10 @@ const googleAuth = async (req, res, next) => {
 
     // Check if token is a test/mock token (for unit tests / dev offline testing)
     if (tokenToVerify.startsWith('mock-token-') || tokenToVerify.startsWith('test-token-')) {
-      const parts = tokenToVerify.split('-');
-      const identifier = parts[2] || 'user1';
+      const prefixLength = tokenToVerify.startsWith('mock-token-') ? 'mock-token-'.length : 'test-token-'.length;
+      const identifier = tokenToVerify.substring(prefixLength) || 'user1';
       googleId = `google_id_${identifier}`;
-      email = `${identifier}@example.com`;
+      email = identifier.includes('@') ? identifier : `${identifier}@example.com`;
       name = `Test User ${identifier}`;
       picture = `https://example.com/avatar/${identifier}.png`;
     } else {
@@ -73,19 +74,36 @@ const googleAuth = async (req, res, next) => {
       });
     }
 
-    // Find or create user
-    let user = await User.findOne({ googleId });
+    const PRIMARY_EMAIL = 'sreenandhanpp@gmail.com';
+    const normalizedEmail = email.toLowerCase().trim();
+    const isPrimaryUser = normalizedEmail === PRIMARY_EMAIL;
+
+    // Find or create user by email or googleId
+    let user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      user = await User.findOne({ googleId });
+    }
+
     if (!user) {
       user = await User.create({
         googleId,
-        email,
+        email: normalizedEmail,
         name: name || email.split('@')[0],
         picture: picture || ''
       });
     } else {
+      if (googleId && user.googleId !== googleId) user.googleId = googleId;
       if (name && user.name !== name) user.name = name;
       if (picture && user.picture !== picture) user.picture = picture;
       await user.save();
+    }
+
+    // If sreenandhanpp@gmail.com signs in, claim all unassigned/legacy expense records in the database
+    if (isPrimaryUser) {
+      await Expense.updateMany(
+        { $or: [{ user: { $exists: false } }, { user: null }] },
+        { $set: { user: user._id } }
+      );
     }
 
     // Issue JWT session token

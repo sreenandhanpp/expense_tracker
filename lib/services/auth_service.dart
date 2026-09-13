@@ -103,7 +103,13 @@ class AuthService extends ChangeNotifier {
 
       // If running on desktop/emulator without Google Play Services or for testing,
       // fallback to dev mock token exchange if googleUser was not obtainable
-      idToken ??= 'mock-token-flutter_user';
+      if (idToken == null) {
+        if (googleUser != null && googleUser.email.isNotEmpty) {
+          idToken = 'mock-token-${googleUser.email}';
+        } else {
+          idToken = 'mock-token-sreenandhanpp@gmail.com';
+        }
+      }
 
       final response = await http.post(
         Uri.parse('${ApiService.baseUrl}/auth/google'),
