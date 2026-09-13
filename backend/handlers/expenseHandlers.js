@@ -7,8 +7,15 @@ const { Expense, CATEGORIES, PAYMENT_METHODS } = require('../models/Expense');
  */
 const getExpenses = async (req, res, next) => {
   try {
-    const { search, category, payment, date } = req.query;
-    const query = { user: req.user.id };
+    if (!req.user || !req.user.id || !mongoose.Types.ObjectId.isValid(req.user.id)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or missing user identity'
+      });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
+    const query = { user: userObjectId };
 
     if (search && search.trim() !== '') {
       query.title = { $regex: search.trim(), $options: 'i' };
@@ -61,7 +68,8 @@ const getExpense = async (req, res, next) => {
       });
     }
 
-    const expense = await Expense.findOne({ _id: id, user: req.user.id });
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
+    const expense = await Expense.findOne({ _id: id, user: userObjectId });
 
     if (!expense) {
       return res.status(404).json({
@@ -124,8 +132,9 @@ const createExpense = async (req, res, next) => {
       });
     }
 
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
     const newExpense = await Expense.create({
-      user: req.user.id,
+      user: userObjectId,
       title: title.trim(),
       amount: numAmount,
       category,
@@ -220,8 +229,9 @@ const updateExpense = async (req, res, next) => {
       updateData.date = parsedDate;
     }
 
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
     const updatedExpense = await Expense.findOneAndUpdate(
-      { _id: id, user: req.user.id },
+      { _id: id, user: userObjectId },
       updateData,
       { new: true, runValidators: true }
     );
@@ -264,7 +274,8 @@ const deleteExpense = async (req, res, next) => {
       });
     }
 
-    const deleted = await Expense.findOneAndDelete({ _id: id, user: req.user.id });
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
+    const deleted = await Expense.findOneAndDelete({ _id: id, user: userObjectId });
 
     if (!deleted) {
       return res.status(404).json({

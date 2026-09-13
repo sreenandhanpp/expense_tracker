@@ -25,7 +25,19 @@ const authMiddleware = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    const userId = decoded.id || decoded._id || decoded.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid authentication token: missing user ID.'
+      });
+    }
+
+    req.user = {
+      ...decoded,
+      id: userId.toString()
+    };
     next();
   } catch (error) {
     return res.status(401).json({

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { Expense } = require('../models/Expense');
 
 /**
@@ -15,10 +16,15 @@ const getSuggestions = async (req, res, next) => {
       });
     }
 
+    if (!req.user || !req.user.id || !mongoose.Types.ObjectId.isValid(req.user.id)) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
     const searchTerm = query.trim();
     const regex = new RegExp(searchTerm, 'i');
 
-    const expenses = await Expense.find({ user: req.user.id, title: regex })
+    const expenses = await Expense.find({ user: userObjectId, title: regex })
       .sort({ date: -1, createdAt: -1 })
       .limit(20);
 

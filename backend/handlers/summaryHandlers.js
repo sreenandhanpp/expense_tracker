@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { Expense } = require('../models/Expense');
 
 /**
@@ -16,7 +17,11 @@ const formatDateKey = (date) => {
  */
 const getSummary = async (req, res, next) => {
   try {
-    const allExpenses = await Expense.find({ user: req.user.id });
+    if (!req.user || !req.user.id || !mongoose.Types.ObjectId.isValid(req.user.id)) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
+    const allExpenses = await Expense.find({ user: userObjectId });
 
     // Determine reference date: use query refDate if provided, otherwise default to current date
     let refDate = new Date();
@@ -109,7 +114,11 @@ const getSummary = async (req, res, next) => {
  */
 const getSpendingTrends = async (req, res, next) => {
   try {
-    const allExpenses = await Expense.find({ user: req.user.id });
+    if (!req.user || !req.user.id || !mongoose.Types.ObjectId.isValid(req.user.id)) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const userObjectId = new mongoose.Types.ObjectId(req.user.id);
+    const allExpenses = await Expense.find({ user: userObjectId });
 
     let refDate = new Date();
     if (req.query.refDate) {
