@@ -102,12 +102,15 @@ class AuthService extends ChangeNotifier {
       }
 
       // If running on desktop/emulator without Google Play Services or for testing,
-      // fallback to dev mock token exchange if googleUser was not obtainable
+      // fallback to dev mock token exchange if googleUser was obtained with an email
       if (idToken == null) {
         if (googleUser != null && googleUser.email.isNotEmpty) {
           idToken = 'mock-token-${googleUser.email}';
         } else {
-          idToken = 'mock-token-sreenandhanpp@gmail.com';
+          _errorMessage = 'Google Sign-In failed or was cancelled.';
+          _isLoading = false;
+          notifyListeners();
+          return false;
         }
       }
 

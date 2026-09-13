@@ -136,31 +136,13 @@ async function runTests() {
     });
     assert(resBadAmount.status === 400 && resBadAmount.body.success === false, 'Validation Error: negative amount');
 
-    // 20. Legacy Unassigned Expense Assignment Test
-    const { Expense } = require('./models/Expense');
-    await Expense.collection.insertOne({
-      title: 'Legacy Bill',
-      amount: 150.00,
-      category: 'Bills',
-      payment: 'Card',
-      date: new Date()
-    });
-
-    // Sign in as new user (should get 0 expenses / clean start)
+    // 20. User Isolation Test
     const resAuthNewUser = await request.post('/api/auth/google').send({
       idToken: 'mock-token-newuser@gmail.com'
     });
     const tokenNewUser = resAuthNewUser.body.data.token;
     const resNewUserExpenses = await request.get('/api/expenses').set({ Authorization: `Bearer ${tokenNewUser}` });
     assert(resNewUserExpenses.status === 200 && resNewUserExpenses.body.data.length === 0, 'New user gets fresh start (0 expenses, no legacy data)');
-
-    // Sign in as sreenandhanpp@gmail.com (should claim unassigned legacy data)
-    const resAuthPrimary = await request.post('/api/auth/google').send({
-      idToken: 'mock-token-sreenandhanpp@gmail.com'
-    });
-    const tokenPrimary = resAuthPrimary.body.data.token;
-    const resPrimaryExpenses = await request.get('/api/expenses').set({ Authorization: `Bearer ${tokenPrimary}` });
-    assert(resPrimaryExpenses.status === 200 && resPrimaryExpenses.body.data.some(e => e.title === 'Legacy Bill'), 'sreenandhanpp@gmail.com claims unassigned legacy database records');
 
   } catch (err) {
     console.error('Test execution error:', err);

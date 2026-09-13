@@ -74,15 +74,19 @@ const googleAuth = async (req, res, next) => {
       });
     }
 
-    const PRIMARY_EMAIL = 'sreenandhanpp@gmail.com';
     const normalizedEmail = email.toLowerCase().trim();
-    const isPrimaryUser = normalizedEmail === PRIMARY_EMAIL;
 
-    // Find or create user by email or googleId
-    let user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      user = await User.findOne({ googleId });
+    // Ensure no other user document holds the same googleId to prevent E11000 duplicate key errors
+    if (googleId) {
+      const existingGoogleUser = await User.findOne({ googleId });
+      if (existingGoogleUser && existingGoogleUser.email !== normalizedEmail) {
+        existingGoogleUser.googleId = `archived_google_id_${existingGoogleUser._id}`;
+        await existingGoogleUser.save();
+      }
     }
+
+    // Find user strictly by normalized email
+    let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       user = await User.create({
@@ -96,14 +100,6 @@ const googleAuth = async (req, res, next) => {
       if (name && user.name !== name) user.name = name;
       if (picture && user.picture !== picture) user.picture = picture;
       await user.save();
-    }
-
-    // If sreenandhanpp@gmail.com signs in, claim all unassigned/legacy expense records in the database
-    if (isPrimaryUser) {
-      await Expense.updateMany(
-        { $or: [{ user: { $exists: false } }, { user: null }] },
-        { $set: { user: user._id } }
-      );
     }
 
     // Issue JWT session token
