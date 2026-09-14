@@ -7,6 +7,8 @@ const { Expense, CATEGORIES, PAYMENT_METHODS } = require('../models/Expense');
  */
 const getExpenses = async (req, res, next) => {
   try {
+    const { search, category, payment, date } = req.query || {};
+
     if (!req.user || !req.user.id || !mongoose.Types.ObjectId.isValid(req.user.id)) {
       return res.status(401).json({
         success: false,
@@ -42,7 +44,9 @@ const getExpenses = async (req, res, next) => {
       }
     }
 
-    const expenses = await Expense.find(query).sort({ date: -1, createdAt: -1 });
+    const expenses = await Expense.find(query)
+      .populate('user', 'email name picture')
+      .sort({ date: -1, createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -69,7 +73,8 @@ const getExpense = async (req, res, next) => {
     }
 
     const userObjectId = new mongoose.Types.ObjectId(req.user.id);
-    const expense = await Expense.findOne({ _id: id, user: userObjectId });
+    const expense = await Expense.findOne({ _id: id, user: userObjectId })
+      .populate('user', 'email name picture');
 
     if (!expense) {
       return res.status(404).json({

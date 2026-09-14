@@ -57,11 +57,14 @@ const expenseSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
 expenseSchema.index({ user: 1, date: -1 });
+expenseSchema.index({ user: 1, payment: 1 });
 expenseSchema.index({ date: -1 });
 expenseSchema.index({ title: 'text' });
 

@@ -26,9 +26,23 @@ const userSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
+
+userSchema.virtual('expenses', {
+  ref: 'Expense',
+  localField: '_id',
+  foreignField: 'user'
+});
+
+userSchema.virtual('payments', {
+  ref: 'Expense',
+  localField: '_id',
+  foreignField: 'user'
+});
 
 userSchema.set('toJSON', {
   virtuals: true,
@@ -43,3 +57,4 @@ userSchema.set('toJSON', {
 const User = mongoose.model('User', userSchema);
 
 module.exports = { User };
+

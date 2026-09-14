@@ -20,10 +20,9 @@ class ExpenseRepository extends ChangeNotifier {
   }
 
   void _onAuthChanged() {
+    clearAll();
     if (AuthService().isAuthenticated) {
       refreshAll();
-    } else {
-      clearAll();
     }
   }
 
@@ -75,6 +74,7 @@ class ExpenseRepository extends ChangeNotifier {
       _expenses.clear();
       _expenses.addAll(fetched);
     } catch (e) {
+      _expenses.clear();
       _errorMessage = 'Couldn\'t load expenses. Try again.';
     } finally {
       _isLoading = false;
