@@ -12,7 +12,6 @@ class AuthService extends ChangeNotifier {
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: '764750335904-lriafp256g49qagqkndo7a3qv0oqnelo.apps.googleusercontent.com',
-    clientId: '764750335904-lriafp256g49qagqkndo7a3qv0oqnelo.apps.googleusercontent.com',
     scopes: ['email', 'profile'],
   );
 
@@ -93,6 +92,7 @@ class AuthService extends ChangeNotifier {
         googleUser = await _googleSignIn.signIn();
       } catch (e) {
         debugPrint('Google Sign-In plugin error: $e');
+        _errorMessage = 'Google Sign-In unavailable on this device. Try Email Sign-In below.';
       }
 
       String? idToken;
@@ -107,7 +107,7 @@ class AuthService extends ChangeNotifier {
         if (googleUser != null && googleUser.email.isNotEmpty) {
           idToken = 'mock-token-${googleUser.email}';
         } else {
-          _errorMessage = 'Google Sign-In failed or was cancelled.';
+          _errorMessage ??= 'Google Sign-In was cancelled or failed.';
           _isLoading = false;
           notifyListeners();
           return false;
